@@ -15,7 +15,7 @@ export const ListProduct = () => {
     
     // const
     console.log(response.data);
-    setData(response.data);
+    setData(Array.isArray(response?.data) ? response.data : []);
   };
 
 

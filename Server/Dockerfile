@@ -1,14 +1,26 @@
-# Base image
-FROM openjdk:17-oracle
+# Stage 1: Build the application
+FROM maven:3.9.9-eclipse-temurin-17-alpine AS builder
 
-# Set working directory
 WORKDIR /app
 
-# Copy JAR file
-COPY target/organica-0.0.1-SNAPSHOT.jar myapp.jar
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
 
-# Expose port 8080
-EXPOSE 9090
+COPY src ./src
+RUN mvn clean package -DskipTests
 
-# Start the Java Spring Boot application
-CMD ["java", "-jar", "myapp.jar"]
+
+# Stage 2: Run the application
+FROM eclipse-temurin:17-jre-alpine
+
+WORKDIR /app
+
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+COPY --from=builder /app/target/*.jar app.jar
+
+USER appuser
+
+EXPOSE 8080
+
+ENTRYPOINT ["java", "-jar", "app.jar"]

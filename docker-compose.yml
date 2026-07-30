@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   mysql:
     image: mysql:8.0
@@ -12,27 +11,39 @@ services:
 
     volumes:
     - ./init:/docker-entrypoint-initdb.d
+    - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
 
 
   backend:
     build:
-      context: ./server
+      context: ./Server
       dockerfile: Dockerfile
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/organica
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: root
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      "razorpay.key_id": local_test_key
+      "razorpay.key_secret": local_test_secret
     
     ports:
-      - 9090:9090
+      - 9090:8080
     depends_on:
-      - mysql
-    
+      mysql:
+        condition: service_healthy
+    restart: on-failure
 
   frontend:
     build:
-      context: ./client
+      context: ./Client
       dockerfile: Dockerfile
     ports:
-      - 3000:3000
+      - 3000:80
+volumes:
+  mysql_data:
