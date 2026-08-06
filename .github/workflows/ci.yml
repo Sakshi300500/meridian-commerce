@@ -9,6 +9,7 @@ on:
       - master
 
 permissions:
+  id-token: write
   contents: read
 
 jobs:
@@ -72,3 +73,29 @@ jobs:
           ignore-unfixed: true
           vuln-type: os,library
           severity: CRITICAL,HIGH
+
+      - name: Configure AWS credentials
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          role-to-assume: arn:aws:iam::597437436298:role/meridian-github-actions-ecr-role
+          aws-region: ap-south-1
+          role-session-name: meridian-github-actions
+          allowed-account-ids: "597437436298"
+
+      - name: Login to Amazon ECR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Tag and push images to Amazon ECR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker tag meridian-backend:ci $ECR_REGISTRY/meridian-backend:$IMAGE_TAG
+          docker tag meridian-frontend:ci $ECR_REGISTRY/meridian-frontend:$IMAGE_TAG
+
+          docker push $ECR_REGISTRY/meridian-backend:$IMAGE_TAG
+          docker push $ECR_REGISTRY/meridian-frontend:$IMAGE_TAG
